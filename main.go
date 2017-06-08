@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 
+	"github.com/muka/ovpndns/parser"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -32,15 +36,49 @@ func main() {
 			Usage:  "Set the default domain",
 			EnvVar: "DOMAIN",
 		},
+		cli.BoolFlag{
+			Name:   "debug",
+			Usage:  "Enable debugging logs",
+			EnvVar: "DEBUG",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
 
+		debug := c.Bool("debug")
 		src := c.String("src")
 		out := c.String("out")
 		domain := c.String("domain")
 
-		WatchFile(file)
+		if debug {
+			log.SetLevel(log.DebugLevel)
+		}
+
+		parser.ParseFile(src)
+		parser.WatchFile(src)
+
+		go func() {
+			updates := parser.GetChannel()
+			for {
+				select {
+				case <-updates:
+
+					log.Debug("Updating configuration")
+
+					data := ""
+
+					records := parser.GetRecords()
+					for _, record := range records {
+						c := fmt.Sprintf("address=/%s.%s/%s", record.Name, domain, record.IP)
+						log.Debugf("Add line %s", c)
+						data += c
+					}
+
+					log.Debugf("Storing to file %s", out)
+					ioutil.WriteFile(out, []byte(data), 0644)
+				}
+			}
+		}()
 
 		return nil
 	}
