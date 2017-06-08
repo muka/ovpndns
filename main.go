@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -54,9 +55,6 @@ func main() {
 			log.SetLevel(log.DebugLevel)
 		}
 
-		parser.ParseFile(src)
-		parser.WatchFile(src)
-
 		go func() {
 			updates := parser.GetChannel()
 			for {
@@ -65,20 +63,22 @@ func main() {
 
 					log.Debug("Updating configuration")
 
-					data := ""
-
+					var buffer bytes.Buffer
 					records := parser.GetRecords()
 					for _, record := range records {
 						c := fmt.Sprintf("address=/%s.%s/%s", record.Name, domain, record.IP)
 						log.Debugf("Add line %s", c)
-						data += c
+						buffer.WriteString(c)
+						buffer.WriteString("\n")
 					}
-
 					log.Debugf("Storing to file %s", out)
-					ioutil.WriteFile(out, []byte(data), 0644)
+					ioutil.WriteFile(out, buffer.Bytes(), 0644)
 				}
 			}
 		}()
+
+		go parser.ParseFile(src)
+		parser.WatchFile(src)
 
 		return nil
 	}

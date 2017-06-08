@@ -4,13 +4,15 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 )
 
-var updates chan bool
+var updates = make(chan bool)
+var mux sync.Mutex
 
 var records []Record
 
@@ -48,7 +50,7 @@ func WatchFile(filename string) {
 				log.Println("event:", event)
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					log.Debugf("modified file: %s", event.Name)
-					ParseFile(filename)
+					go ParseFile(filename)
 				}
 			case err := <-watcher.Errors:
 				log.Errorf("error: %s", err.Error())
@@ -72,6 +74,7 @@ func readFile(filename string) (string, error) {
 //ParseFile read the content to map
 func ParseFile(filename string) error {
 
+	mux.Lock()
 	content, err := readFile(filename)
 	if err != nil {
 		return err
@@ -84,9 +87,6 @@ func ParseFile(filename string) error {
 
 		// 10.0.0.6,test1,172.23.0.1:44623,Tue Jun  6 06:29:28 2017
 		r, _ := regexp.Compile(`([.0-9]+)[,]([a-zA-Z0-9._-]+)[,]([\.0-9]+)[:][0-9]+[,](.*)$`)
-
-		// Using FindStringSubmatch you are able to access the
-		// individual capturing groups
 		matches := r.FindStringSubmatch(line)
 
 		if len(matches) == 0 {
@@ -111,6 +111,8 @@ func ParseFile(filename string) error {
 	}
 
 	updates <- true
+
+	mux.Unlock()
 
 	return nil
 }
