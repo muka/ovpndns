@@ -47,13 +47,13 @@ func WatchFile(filename string) {
 		for {
 			select {
 			case event := <-watcher.Events:
-				log.Println("event:", event)
+				log.Debugf("event: %v", event)
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					log.Debugf("modified file: %s", event.Name)
 					go ParseFile(filename)
 				}
 			case err := <-watcher.Errors:
-				log.Errorf("error: %s", err.Error())
+				log.Errorf("error watching %s: %s", filename, err.Error())
 			}
 		}
 	}()
