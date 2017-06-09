@@ -11,10 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var updates = make(chan bool)
+var updates = make(chan []Record)
 var mux sync.Mutex
-
-var records []Record
 
 //Record of OpenVPN log
 type Record struct {
@@ -25,13 +23,8 @@ type Record struct {
 }
 
 //GetChannel the channel used to notify updates
-func GetChannel() chan bool {
+func GetChannel() chan []Record {
 	return updates
-}
-
-//GetRecords get the current list of records
-func GetRecords() []Record {
-	return records
 }
 
 //WatchFile watch for changes
@@ -71,6 +64,16 @@ func readFile(filename string) (string, error) {
 	return string(b), err
 }
 
+func containRecord(record Record, list []Record) bool {
+	found := false
+	for _, r := range list {
+		if r.IP == record.IP {
+			return true
+		}
+	}
+	return found
+}
+
 //ParseFile read the content to map
 func ParseFile(filename string) error {
 
@@ -81,7 +84,7 @@ func ParseFile(filename string) error {
 	}
 
 	lines := strings.Split(content, "\n")
-	records = make([]Record, 0)
+	records := make([]Record, 0)
 
 	for _, line := range lines {
 
@@ -110,7 +113,8 @@ func ParseFile(filename string) error {
 		records = append(records, record)
 	}
 
-	updates <- true
+	log.Debugf("Found %d records", len(records))
+	updates <- records
 
 	mux.Unlock()
 

@@ -37,3 +37,6 @@ run: install
 
 dockerize: $(TARGET)
 	@docker build . -t opny/$(TARGET)
+
+push: dockerize
+	@docker push opny/$(TARGET)

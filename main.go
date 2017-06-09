@@ -37,6 +37,12 @@ func main() {
 			Usage:  "Set the default domain",
 			EnvVar: "DOMAIN",
 		},
+		cli.StringFlag{
+			Name:   "docker, ds",
+			Value:  "/var/run/docker.sock",
+			Usage:  "Set the default domain",
+			EnvVar: "DOCKER_SOCKET",
+		},
 		cli.BoolFlag{
 			Name:   "debug",
 			Usage:  "Enable debugging logs",
@@ -59,14 +65,17 @@ func main() {
 			updates := parser.GetChannel()
 			for {
 				select {
-				case <-updates:
+				case records := <-updates:
 
-					log.Debug("Updating configuration")
+					log.Debugf("Updating configuration, %d records", len(records))
 
 					var buffer bytes.Buffer
-					records := parser.GetRecords()
 					for _, record := range records {
-						c := fmt.Sprintf("address=/%s.%s/%s", record.Name, domain, record.IP)
+
+						// c := fmt.Sprintf("address=/%s.%s/%s", record.Name, domain, record.IP)
+
+						c := fmt.Sprintf("%s %s.%s", record.IP, record.Name, domain)
+
 						log.Debugf("Add line %s", c)
 						buffer.WriteString(c)
 						buffer.WriteString("\n")
