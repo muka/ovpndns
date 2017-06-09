@@ -36,4 +36,4 @@ run: install
 	@$(TARGET)
 
 dockerize: $(TARGET)
-	@docker build . -t $(TARGET)
+	@docker build . -t opny/$(TARGET)
