@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/muka/ovpndns/ddns"
 	"github.com/muka/ovpndns/parser"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -38,10 +39,10 @@ func main() {
 			EnvVar: "DOMAIN",
 		},
 		cli.StringFlag{
-			Name:   "docker, ds",
-			Value:  "/var/run/docker.sock",
-			Usage:  "Set the default domain",
-			EnvVar: "DOCKER_SOCKET",
+			Name:   "ddns",
+			Value:  "127.0.0.1:5551",
+			Usage:  "DDNS API host",
+			EnvVar: "DDNS_HOST",
 		},
 		cli.BoolFlag{
 			Name:   "debug",
@@ -56,9 +57,14 @@ func main() {
 		src := c.String("src")
 		out := c.String("out")
 		domain := c.String("domain")
+		ddnsHost := c.String("ddns")
 
 		if debug {
 			log.SetLevel(log.DebugLevel)
+		}
+
+		if ddnsHost != "" {
+			ddns.CreateClient(ddnsHost)
 		}
 
 		go func() {
@@ -70,10 +76,9 @@ func main() {
 					log.Debugf("Updating configuration, %d records", len(records))
 
 					var buffer bytes.Buffer
-					for _, record := range records {
+					for i, record := range records {
 
-						// c := fmt.Sprintf("address=/%s.%s/%s", record.Name, domain, record.IP)
-
+						records[i].Name = record.Name + "." + domain
 						c := fmt.Sprintf("%s %s.%s", record.IP, record.Name, domain)
 
 						log.Debugf("Add line %s", c)
@@ -82,6 +87,10 @@ func main() {
 					}
 					log.Debugf("Storing to file %s", out)
 					ioutil.WriteFile(out, buffer.Bytes(), 0644)
+
+					if ddnsHost != "" {
+						ddns.Compare(records)
+					}
 				}
 			}
 		}()
