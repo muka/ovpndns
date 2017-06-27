@@ -36,7 +36,7 @@ run: install
 	@$(TARGET)
 
 dockerize: $(TARGET)
-	@docker build . -t opny/$(TARGET)
+	@docker build . -t raptorbox/$(TARGET)
 
 push: dockerize
-	@docker push opny/$(TARGET)
+	@docker push raptorbox/$(TARGET)
