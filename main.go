@@ -17,7 +17,7 @@ func main() {
 	app := cli.NewApp()
 
 	app.Name = "ovpndns"
-	app.Usage = "Parse openvpn status file and push hosts to dnsmasq"
+	app.Usage = "Parse a openvpn status file and store to hosts like file for dnsmasq or push to ddns"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -28,14 +28,14 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:   "out, o",
-			Value:  "./data/hosts",
-			Usage:  "Set the dns record output file",
+			Value:  "",
+			Usage:  "Set the output file of a hosts-like formatted list of clients",
 			EnvVar: "OUT_FILE",
 		},
 		cli.StringFlag{
 			Name:   "domain, d",
 			Value:  "service.local",
-			Usage:  "Set the default domain",
+			Usage:  "Set the default domain to append to each host name",
 			EnvVar: "DOMAIN",
 		},
 		cli.StringFlag{
