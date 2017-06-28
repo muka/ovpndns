@@ -39,10 +39,15 @@ func main() {
 			EnvVar: "DOMAIN",
 		},
 		cli.StringFlag{
-			Name:   "ddns",
+			Name:   "ddns-host",
 			Value:  "127.0.0.1:5551",
 			Usage:  "DDNS API host",
 			EnvVar: "DDNS_HOST",
+		},
+		cli.BoolFlag{
+			Name:   "ddns",
+			Usage:  "Enable ddns sync",
+			EnvVar: "DDNS",
 		},
 		cli.BoolFlag{
 			Name:   "debug",
@@ -57,18 +62,23 @@ func main() {
 		src := c.String("src")
 		out := c.String("out")
 		domain := c.String("domain")
-		ddnsHost := c.String("ddns")
+		ddnsFlag := c.Bool("ddns")
+		ddnsHost := c.String("ddns-host")
 
 		if debug {
 			log.SetLevel(log.DebugLevel)
 		}
 
-		if out == "" && ddnsHost != "" {
+		if out == "" && !ddnsFlag {
 			log.Info("Please provide at least an option between --out and --ddns")
 			return nil
 		}
+		if ddnsFlag && ddnsHost == "" {
+			log.Info("Please provide the --ddns-host option")
+			return nil
+		}
 
-		if ddnsHost != "" {
+		if ddnsFlag && ddnsHost != "" {
 			ddns.CreateClient(ddnsHost)
 		}
 
@@ -85,8 +95,8 @@ func main() {
 						}
 					}
 
-					if ddnsHost != "" {
-						ddns.Compare(records)
+					if ddnsFlag && ddnsHost != "" {
+						ddns.Compare(records, domain)
 					}
 				}
 			}
@@ -107,7 +117,7 @@ func updateHosts(records []*parser.Record, domain string, out string) error {
 	log.Debugf("Updating configuration, %d records", len(records))
 
 	var buffer bytes.Buffer
-	for i, record := range records {
+	for _, record := range records {
 		c := fmt.Sprintf("%s %s.%s", record.IP, record.Name, domain)
 
 		log.Debugf("Add line %s", c)

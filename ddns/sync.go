@@ -19,6 +19,7 @@ var dnsclient *client.APIService
 //CreateClient create a DDNS api client
 func CreateClient(host string) {
 	if dnsclient == nil {
+
 		// create the API client, with the transport
 		cfg := client.TransportConfig{
 			BasePath: "",
@@ -33,6 +34,7 @@ func getClient() *client.APIService {
 	if dnsclient == nil {
 		panic(errors.New("Client not initialized. Call CreateClient first"))
 	}
+
 	return dnsclient
 }
 
@@ -46,49 +48,60 @@ func has(key string, store []*parser.Record) bool {
 }
 
 // Compare a map and sync with ddns
-func Compare(records []*parser.Record) error {
+func Compare(records []*parser.Record, domain string) error {
 
 	mux.Lock()
 
 	var werr error
+
 	// find new
 	for _, record := range records {
-		if !has(record.IP, state) {
-			log.Debugf("Saving DNS record %s", record.Name)
 
-			err := SaveRecord(record.Name, record.IP)
+		domainName := record.Name + "." + domain
+
+		if !has(record.IP, state) {
+			log.Debugf("Saving DNS record %s", domainName)
+
+			err := SaveRecord(domainName, record.IP)
 			if err != nil {
-				log.Errorf("Error saving %s: %s", record.Name, err.Error())
+				log.Errorf("Error saving %s: %s", domainName, err.Error())
 				werr = err
 				continue
 			}
 
 			state = append(state, record)
+		} else {
+			log.Debugf("Skip %s", domainName)
 		}
 	}
 
 	// find deleted
 	for i, record := range state {
+
+		domainName := record.Name + "." + domain
+
 		if !has(record.IP, records) {
 
-			log.Debugf("Removing DNS record %s", record.Name)
+			log.Debugf("Removing DNS record %s", domainName)
 
-			err := DeleteRecord(record.Name)
+			err := DeleteRecord(domainName)
 			if err != nil {
-				log.Errorf("Error removing %s: %s", record.Name, err.Error())
+				log.Errorf("Error removing %s: %s", domainName, err.Error())
 				werr = err
 				continue
 			}
 
-			// unreference for GC
-			state[i] = nil
-			// delete element
-			state = state[:i+copy(state[i:], state[i+1:])]
-
+			if i < len(state) {
+				// unreference for GC
+				state[i] = nil
+				// delete element
+				state = state[:i+copy(state[i:], state[i+1:])]
+			}
 		}
 	}
 
 	log.Debugf("State has %d, records has %d", len(state), len(records))
+
 	mux.Unlock()
 
 	return werr
