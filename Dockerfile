@@ -1,5 +1,5 @@
 FROM scratch
 
-ADD ./ovpndns /
+ADD ./build/ovpndns-amd64 /ovpndns
 
 ENTRYPOINT [ "/ovpndns" ]

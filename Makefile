@@ -22,7 +22,7 @@ SRC = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 all: build
 
 $(TARGET): $(SRC)
-	CGO_ENABLED=0 ARCH=${ARCH} GOARCH=${GOARCH} GOARM=${GOARM} go build $(LDFLAGS) -o ./build/$(TARGET)
+	CGO_ENABLED=0 ARCH=${ARCH} GOARCH=${GOARCH} GOARM=${GOARM} go build $(LDFLAGS) -o ./build/${TARGET}-$(ARCH)
 
 build: $(TARGET)
 	@true
@@ -40,7 +40,7 @@ run: install
 	@$(TARGET)
 
 docker/build:
-	@docker build . -t raptorbox/$(TARGET)
+	@docker build . -t raptorbox/$(TARGET)-$(ARCH)
 
 docker/push: docker/build
-	@docker push raptorbox/$(TARGET)
+	@docker push raptorbox/$(TARGET)-$(ARCH)
