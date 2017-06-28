@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var state = make([]parser.Record, 0)
+var state = make([]*parser.Record, 0)
 var mux sync.Mutex
 
 var dnsclient *client.APIService
@@ -19,7 +19,6 @@ var dnsclient *client.APIService
 //CreateClient create a DDNS api client
 func CreateClient(host string) {
 	if dnsclient == nil {
-
 		// create the API client, with the transport
 		cfg := client.TransportConfig{
 			BasePath: "",
@@ -34,24 +33,24 @@ func getClient() *client.APIService {
 	if dnsclient == nil {
 		panic(errors.New("Client not initialized. Call CreateClient first"))
 	}
-
 	return dnsclient
 }
 
-// Compare a map and sync with ddns
-func Compare(records []parser.Record) error {
-
-	has := func(key string, store []parser.Record) bool {
-		for i := 0; i < len(store); i++ {
-			if store[i].IP == key {
-				return true
-			}
+func has(key string, store []*parser.Record) bool {
+	for i := 0; i < len(store); i++ {
+		if store[i].IP == key {
+			return true
 		}
-		return false
 	}
+	return false
+}
+
+// Compare a map and sync with ddns
+func Compare(records []*parser.Record) error {
 
 	mux.Lock()
 
+	var werr error
 	// find new
 	for _, record := range records {
 		if !has(record.IP, state) {
@@ -60,18 +59,16 @@ func Compare(records []parser.Record) error {
 			err := SaveRecord(record.Name, record.IP)
 			if err != nil {
 				log.Errorf("Error saving %s: %s", record.Name, err.Error())
+				werr = err
 				continue
 			}
 
 			state = append(state, record)
-		} else {
-			log.Debugf("Not saving %s", record.Name)
 		}
 	}
 
 	// find deleted
-	state2 := make([]parser.Record, 0)
-	for _, record := range state {
+	for i, record := range state {
 		if !has(record.IP, records) {
 
 			log.Debugf("Removing DNS record %s", record.Name)
@@ -79,20 +76,22 @@ func Compare(records []parser.Record) error {
 			err := DeleteRecord(record.Name)
 			if err != nil {
 				log.Errorf("Error removing %s: %s", record.Name, err.Error())
+				werr = err
+				continue
 			}
 
-		} else {
-			log.Debugf("Not removing %s", record.Name)
-			state2 = append(state2, record)
+			// unreference for GC
+			state[i] = nil
+			// delete element
+			state = state[:i+copy(state[i:], state[i+1:])]
+
 		}
 	}
 
-	log.Debugf("State len %d vs %d", len(state), len(state2))
-	state = state2
-
+	log.Debugf("State has %d, records has %d", len(state), len(records))
 	mux.Unlock()
 
-	return nil
+	return werr
 }
 
 //SaveRecord store a record

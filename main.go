@@ -63,6 +63,11 @@ func main() {
 			log.SetLevel(log.DebugLevel)
 		}
 
+		if out == "" && ddnsHost != "" {
+			log.Info("Please provide at least an option between --out and --ddns")
+			return nil
+		}
+
 		if ddnsHost != "" {
 			ddns.CreateClient(ddnsHost)
 		}
@@ -73,20 +78,12 @@ func main() {
 				select {
 				case records := <-updates:
 
-					log.Debugf("Updating configuration, %d records", len(records))
-
-					var buffer bytes.Buffer
-					for i, record := range records {
-
-						records[i].Name = record.Name + "." + domain
-						c := fmt.Sprintf("%s %s.%s", record.IP, record.Name, domain)
-
-						log.Debugf("Add line %s", c)
-						buffer.WriteString(c)
-						buffer.WriteString("\n")
+					if out != "" {
+						err := updateHosts(records, domain, out)
+						if err != nil {
+							log.Errorf("Error saving %s: %s", out, err.Error())
+						}
 					}
-					log.Debugf("Storing to file %s", out)
-					ioutil.WriteFile(out, buffer.Bytes(), 0644)
 
 					if ddnsHost != "" {
 						ddns.Compare(records)
@@ -103,4 +100,21 @@ func main() {
 
 	app.Run(os.Args)
 
+}
+
+func updateHosts(records []*parser.Record, domain string, out string) error {
+
+	log.Debugf("Updating configuration, %d records", len(records))
+
+	var buffer bytes.Buffer
+	for i, record := range records {
+		c := fmt.Sprintf("%s %s.%s", record.IP, record.Name, domain)
+
+		log.Debugf("Add line %s", c)
+		buffer.WriteString(c)
+		buffer.WriteString("\n")
+	}
+
+	log.Debugf("Storing to file %s", out)
+	return ioutil.WriteFile(out, buffer.Bytes(), 0644)
 }
