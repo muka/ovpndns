@@ -1,36 +1,39 @@
 package ddns
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"os"
 	"sync"
+	"time"
 
-	"github.com/muka/ddns/client"
-	"github.com/muka/ddns/client/d_dns_service"
-	"github.com/muka/ddns/models"
+	"github.com/muka/ddns/api"
 	"github.com/muka/ovpndns/parser"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 var state = make([]*parser.Record, 0)
 var mux sync.Mutex
 
-var dnsclient *client.APIService
+var dnsclient api.DDNSServiceClient
 
 //CreateClient create a DDNS api client
 func CreateClient(host string) {
 	if dnsclient == nil {
 
-		// create the API client, with the transport
-		cfg := client.TransportConfig{
-			BasePath: "",
-			Host:     host,
-			Schemes:  []string{"http"},
+		conn, err := grpc.Dial(host, grpc.WithInsecure())
+		if err != nil {
+			fmt.Printf("Failed to connect to ddns at %s: %s", host, err)
+			os.Exit(1)
 		}
-		dnsclient = client.NewHTTPClientWithConfig(nil, &cfg)
+
+		dnsclient = api.NewDDNSServiceClient(conn)
 	}
 }
 
-func getClient() *client.APIService {
+func getClient() api.DDNSServiceClient {
 	if dnsclient == nil {
 		panic(errors.New("Client not initialized. Call CreateClient first"))
 	}
@@ -110,17 +113,18 @@ func Compare(records []*parser.Record, domain string) error {
 //SaveRecord store a record
 func SaveRecord(domain string, ip string) error {
 
-	record := models.APIRecord{}
-
+	record := new(api.Record)
 	record.Domain = domain
-	record.IP = ip
+	record.Ip = ip
 	record.Type = "A"
 	record.PTR = true
 
-	params := d_dns_service.NewSaveRecordParams()
-	params.SetBody(&record)
+	c := getClient()
 
-	_, err := getClient().DDNSService.SaveRecord(params)
+	ctx1 := context.Background()
+	ctx, cancel := context.WithTimeout(ctx1, time.Millisecond*500)
+	defer cancel()
+	_, err := c.SaveRecord(ctx, record)
 
 	return err
 }
@@ -128,11 +132,14 @@ func SaveRecord(domain string, ip string) error {
 //DeleteRecord remove a record
 func DeleteRecord(domain string) error {
 
-	params := d_dns_service.NewDeleteRecordParams()
-	params.SetDomain(domain)
-	params.SetType("A")
+	record := new(api.Record)
+	record.Domain = domain
+	record.Type = "A"
 
-	_, err := getClient().DDNSService.DeleteRecord(params)
-
+	c := getClient()
+	ctx1 := context.Background()
+	ctx, cancel := context.WithTimeout(ctx1, time.Millisecond*500)
+	defer cancel()
+	_, err := c.DeleteRecord(ctx, record)
 	return err
 }

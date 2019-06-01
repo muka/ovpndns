@@ -40,7 +40,7 @@ run: install
 	@$(TARGET)
 
 docker/build:
-	@docker build . -t raptorbox/$(TARGET)-$(ARCH)
+	@docker build . -t opny/$(TARGET)-$(ARCH)
 
 docker/push: docker/build
-	@docker push raptorbox/$(TARGET)-$(ARCH)
+	@docker push opny/$(TARGET)-$(ARCH)

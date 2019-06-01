@@ -39,10 +39,10 @@ func main() {
 			EnvVar: "DOMAIN",
 		},
 		cli.StringFlag{
-			Name:   "ddns-host",
-			Value:  "127.0.0.1:5551",
-			Usage:  "DDNS API host",
-			EnvVar: "DDNS_HOST",
+			Name:   "ddns-grpc",
+			Value:  "127.0.0.1:50551",
+			Usage:  "DDNS GRPC API host",
+			EnvVar: "DDNS_GRPC",
 		},
 		cli.BoolFlag{
 			Name:   "ddns",
@@ -63,7 +63,7 @@ func main() {
 		out := c.String("out")
 		domain := c.String("domain")
 		ddnsFlag := c.Bool("ddns")
-		ddnsHost := c.String("ddns-host")
+		ddnsHost := c.String("ddns-grpc")
 
 		if debug {
 			log.SetLevel(log.DebugLevel)
